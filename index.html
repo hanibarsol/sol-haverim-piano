@@ -303,13 +303,11 @@
 
     // --- Note-timing feedback for "בואו נכיר את החברים הנוספים", built from Hani's calibration
     // marks (video timestamps where each character hits the green line) plus
-    // the character/note sequence she gave for those marks. All in octave 4
-    // since the melody only uses do-re-mi-fa-sol and stays in one octave.
+    // the character/note sequence she gave for those marks. All in octave 4,
+    // one octave (uses the full do-re-mi-fa-sol-la-si range, but no octave jumps).
     const solfegeToLetter = { do: 'C', re: 'D', mi: 'E', fa: 'F', sol: 'G', la: 'A', si: 'B' };
-    // Not calibrated yet for this song — fill in once Hani sends the marked
-    // timestamps (via ?admin=1) and the matching note sequence.
-    const songTimes = [];
-    const songSyllables = [];
+    const songTimes = [56.30, 60.52, 65.21, 68.40, 74.10, 78.32, 82.94, 87.57, 91.84, 96.39, 100.75, 104.80, 108.00];
+    const songSyllables = ['sol', 'mi', 'la', 'si', 'fa', 're', 'do', 're', 'mi', 'fa', 'sol', 'la', 'si'];
     const songNotes = songTimes.map((t, i) => ({ time: t, note: solfegeToLetter[songSyllables[i]] + '4' }));
 
     // How early the target key lights up before its moment (lets a child react
