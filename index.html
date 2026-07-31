@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>המשפחה של סול - שיעור + פסנתר</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        :root { --white-w: 50px; --black-w: 33px; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #111;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none !important;
+            -webkit-touch-callout: none;
+            font-family: Arial, sans-serif;
+        }
+        #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        #start-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.85); color: white; display: flex; justify-content: center; align-items: center; z-index: 100; cursor: pointer; font-size: 22px; text-align: center; padding: 20px; box-sizing: border-box; }
+
+        #video-wrap { flex: 1 1 auto; min-height: 0; background: #000; touch-action: auto; }
+        #video-wrap iframe { width: 100%; height: 100%; border: 0; touch-action: auto; }
+
+        #speed-bar {
+            flex: 0 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            background: #1a1a1a;
+            touch-action: auto;
+        }
+        .speed-step-btn {
+            touch-action: auto;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+        }
+        .speed-step-btn:active { background: #555; }
+        #speed-reset {
+            touch-action: auto;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+            min-width: 90px;
+        }
+        #speed-reset.is-normal { background: #ffeb3b; color: #000; font-weight: bold; }
+
+        #piano-container {
+            flex: 0 0 42vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            padding-top: 1vh;
+            box-sizing: border-box;
+            touch-action: none !important;
+        }
+        .piano {
+            display: flex;
+            position: relative;
+            direction: ltr;
+            height: 100%;
+            touch-action: none !important;
+        }
+
+        .key {
+            position: relative;
+            border: 1px solid #000;
+            box-sizing: border-box;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 6px;
+            z-index: 10;
+            touch-action: none !important;
+            -webkit-touch-callout: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .white-key { width: var(--white-w); height: 100%; background-color: white; border-radius: 0 0 5px 5px; }
+
+        .black-key {
+            width: var(--black-w);
+            height: 60%;
+            background-color: #333;
+            z-index: 30;
+            margin-left: calc(var(--black-w) / -2);
+            margin-right: calc(var(--black-w) / -2);
+            border-radius: 0 0 3px 3px;
+        }
+
+        .key.active { background-color: #ffeb3b !important; }
+        .key.due { box-shadow: inset 0 0 0 5px #4caf50; }
+        .key.correct-flash {
+            background-color: #ffab00 !important;
+            box-shadow: 0 0 18px 6px rgba(255, 171, 0, 0.75);
+            transform: scale(1.05);
+            transition: transform 0.15s, box-shadow 0.15s;
+            z-index: 40;
+        }
+        @keyframes star-pop {
+            0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+            40%  { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
+        }
+        .star-pop {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            font-size: 28px;
+            pointer-events: none;
+            animation: star-pop 0.55s ease-out forwards;
+            z-index: 41;
+        }
+
+        .character-img {
+            width: 80%;
+            margin-bottom: 4px;
+            pointer-events: none;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+
+        #calib-panel {
+            display: none;
+            position: fixed;
+            top: 8px;
+            left: 8px;
+            z-index: 50;
+            background: rgba(0,0,0,0.75);
+            border-radius: 10px;
+            padding: 8px;
+            max-width: 220px;
+            touch-action: auto;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        #calib-panel button {
+            touch-action: auto;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        #calib-mark { background: #ffeb3b; color: #000; font-weight: bold; width: 100%; padding: 12px; font-size: 16px; }
+        #calib-undo { background: #555; color: #fff; }
+        #calib-clear { background: #555; color: #fff; }
+        #calib-copy { background: #4caf50; color: #fff; }
+        #calib-list {
+            touch-action: auto;
+            max-height: 110px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 6px;
+            padding: 4px;
+            direction: ltr;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="video-wrap">
+        <div id="lesson-video"></div>
+    </div>
+    <div id="speed-bar">
+        <button id="speed-minus" class="speed-step-btn">－</button>
+        <button id="speed-reset" class="is-normal">מהירות</button>
+        <button id="speed-plus" class="speed-step-btn">＋</button>
+    </div>
+    <div id="piano-container">
+        <div class="piano" id="piano"></div>
+    </div>
+</div>
+
+<div id="start-screen">לחצי כאן כדי להתחיל את השיעור והפסנתר</div>
+
+<div id="calib-panel">
+    <button id="calib-mark">סמן עכשיו ▶</button>
+    <div style="display:flex; justify-content:space-between;">
+        <button id="calib-undo">בטל אחרון</button>
+        <button id="calib-clear">נקה הכל</button>
+    </div>
+    <button id="calib-copy" style="width:100%">העתק תוצאות</button>
+    <div id="calib-list"></div>
+</div>
+
+<script>
+    const startScreen = document.getElementById('start-screen');
+    const pianoElement = document.getElementById('piano');
+    const pianoContainer = document.getElementById('piano-container');
+
+    // Calibration tool is dev-only: hidden from students, shown only when
+    // building/checking a song's timing map via ?admin=1 in the URL.
+    if (new URLSearchParams(location.search).get('admin') === '1') {
+        document.getElementById('calib-panel').style.display = 'block';
+    }
+
+    // Real YouTube IFrame API (instead of one-way postMessage guesses) so we can
+    // reliably read back the current playback time for the calibration tool below.
+    let player = null;
+    let pendingPlay = false;
+    window.onYouTubeIframeAPIReady = function () {
+        player = new YT.Player('lesson-video', {
+            videoId: 'ywT0e8wFcGA',
+            playerVars: { playsinline: 1, rel: 0 },
+            events: {
+                onReady: () => { if (pendingPlay) player.playVideo(); }
+            }
+        });
+    };
+
+    startScreen.addEventListener('click', async () => {
+        await Tone.start();
+        await reverb.ready;
+        startScreen.style.display = 'none';
+        console.log("Audio Context started");
+
+        if (player && player.playVideo) player.playVideo();
+        else pendingPlay = true;
+    });
+
+    // Speed stepper: minus/plus move in 0.25 steps between 0.5x-1.5x,
+    // the center button both shows the current speed and resets to normal.
+    const speedSteps = [0.5, 0.75, 1, 1.25, 1.5];
+    let speedIndex = 2; // 1x
+    const speedMinusBtn = document.getElementById('speed-minus');
+    const speedPlusBtn = document.getElementById('speed-plus');
+    const speedResetBtn = document.getElementById('speed-reset');
+
+    function applySpeed(index) {
+        speedIndex = Math.max(0, Math.min(speedSteps.length - 1, index));
+        const rate = speedSteps[speedIndex];
+        if (player && player.setPlaybackRate) player.setPlaybackRate(rate);
+        const isNormal = rate === 1;
+        speedResetBtn.textContent = isNormal ? 'מהירות' : `×${rate}`;
+        speedResetBtn.classList.toggle('is-normal', isNormal);
+    }
+
+    speedMinusBtn.addEventListener('click', () => applySpeed(speedIndex - 1));
+    speedPlusBtn.addEventListener('click', () => applySpeed(speedIndex + 1));
+    speedResetBtn.addEventListener('click', () => applySpeed(2));
+
+    // --- Calibration tool: tap "mark now" every time a character hits the green
+    // line, and it logs the exact video timestamp. Not part of the kids' UI —
+    // this is a dev tool for building the note-timing map for this song.
+    const calibMarks = [];
+    const calibListEl = document.getElementById('calib-list');
+    const calibMarkBtn = document.getElementById('calib-mark');
+    const calibUndoBtn = document.getElementById('calib-undo');
+    const calibClearBtn = document.getElementById('calib-clear');
+    const calibCopyBtn = document.getElementById('calib-copy');
+
+    function renderCalibList() {
+        calibListEl.innerHTML = calibMarks
+            .map((t, i) => `${i + 1}. ${t.toFixed(2)}s`)
+            .join('<br>');
+        calibListEl.scrollTop = calibListEl.scrollHeight;
+    }
+
+    calibMarkBtn.addEventListener('click', () => {
+        if (!player || !player.getCurrentTime) return;
+        calibMarks.push(player.getCurrentTime());
+        renderCalibList();
+    });
+    calibUndoBtn.addEventListener('click', () => { calibMarks.pop(); renderCalibList(); });
+    calibClearBtn.addEventListener('click', () => { calibMarks.length = 0; renderCalibList(); });
+    calibCopyBtn.addEventListener('click', () => {
+        const text = calibMarks.map(t => t.toFixed(2)).join(', ');
+        navigator.clipboard.writeText(text).catch(() => {});
+        calibCopyBtn.textContent = 'הועתק!';
+        setTimeout(() => { calibCopyBtn.textContent = 'העתק תוצאות'; }, 1200);
+    });
+
+    // --- Note-timing feedback for "בואו נכיר את החברים הנוספים", built from Hani's calibration
+    // marks (video timestamps where each character hits the green line) plus
+    // the character/note sequence she gave for those marks. All in octave 4
+    // since the melody only uses do-re-mi-fa-sol and stays in one octave.
+    const solfegeToLetter = { do: 'C', re: 'D', mi: 'E', fa: 'F', sol: 'G', la: 'A', si: 'B' };
+    // Not calibrated yet for this song — fill in once Hani sends the marked
+    // timestamps (via ?admin=1) and the matching note sequence.
+    const songTimes = [];
+    const songSyllables = [];
+    const songNotes = songTimes.map((t, i) => ({ time: t, note: solfegeToLetter[songSyllables[i]] + '4' }));
+
+    // How early the target key lights up before its moment (lets a child react
+    // to the visual cue), and how long after it still counts as a correct hit.
+    const NOTE_LEAD = 0.6;
+    const NOTE_TAIL = 0.45;
+    let songIdx = 0;
+    let songHit = false;
+    const keyByNote = {};
+
+    const characterImages = ["דו.png", "רה.png", "מי.png", "פה.png", "סול.png", "לה.png", "סי.png"];
+
+    // Map every note to its real recorded sample (24 files exist in sounds/,
+    // the previous version only wired up 4 of them and let Tone.js pitch-shift the rest).
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    // This test page uses a single octave: with two octaves, the same character
+    // appeared twice and it wasn't clear which copy was the "real" target key,
+    // which made the correct-press flash look like it wasn't responding at all.
+    const octaves = [4];
+
+    function noteToFile(note, octave) {
+        const letter = note[0].toLowerCase();
+        const sharp = note.includes('#') ? 'd' : '';
+        return `sounds/${letter}${sharp}${octave}.wav`;
+    }
+
+    // sounds/d4.wav and sounds/e4.wav actually contain mislabeled D3/E3 audio
+    // (a leftover export mistake, not something the recording session did wrong).
+    // Skip them so Tone.Sampler falls back to pitch-shifting from the nearest
+    // good sample (the same behavior the original piano already relies on).
+    const knownBadSamples = new Set(['D4', 'E4']);
+
+    const sampleUrls = {};
+    octaves.forEach(octave => {
+        notes.forEach(note => {
+            const fullNote = note + octave;
+            if (knownBadSamples.has(fullNote)) return;
+            sampleUrls[fullNote] = noteToFile(note, octave);
+        });
+    });
+
+    // A subtle reverb gives the notes a gentle "sustain pedal" quality —
+    // like they keep resonating in the room rather than stopping dead.
+    const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
+
+    const sampler = new Tone.Sampler({
+        urls: sampleUrls,
+        baseUrl: "./",
+        // A real piano note keeps ringing for a while after the key is released.
+        // The default release (~0.1s) cut notes off almost the instant a child
+        // lifted their finger, especially on quick taps. 2.2s lets it fade out naturally.
+        attack: 0.005,
+        release: 2.2,
+        onload: () => console.log("Sounds loaded!"),
+        onerror: (e) => console.log("Error loading sound", e)
+    }).connect(reverb);
+
+    let whiteKeyIndex = 0;
+
+    octaves.forEach(octave => {
+        notes.forEach(note => {
+            const isBlack = note.includes('#');
+            const fullNote = note + octave;
+            const key = document.createElement('div');
+            key.className = `key ${isBlack ? 'black-key' : 'white-key'}`;
+            key.dataset.note = fullNote;
+            key.dataset.isPlaying = "false";
+            keyByNote[fullNote] = key;
+
+            if (!isBlack) {
+                const img = document.createElement('img');
+                img.src = characterImages[whiteKeyIndex] || "";
+                img.className = 'character-img';
+                key.appendChild(img);
+                whiteKeyIndex++;
+            }
+
+            const playNote = () => {
+                if (key.dataset.isPlaying === "true") return;
+                key.dataset.isPlaying = "true";
+                key.classList.add('active');
+                try { sampler.triggerAttack(fullNote); } catch (err) {}
+
+                if (!songHit && songIdx < songNotes.length && player && player.getCurrentTime) {
+                    const cur = songNotes[songIdx];
+                    if (fullNote === cur.note) {
+                        const t = player.getCurrentTime();
+                        if (t >= cur.time - NOTE_LEAD && t <= cur.time + NOTE_TAIL) {
+                            songHit = true;
+                            key.classList.add('correct-flash');
+                            const star = document.createElement('div');
+                            star.className = 'star-pop';
+                            star.textContent = '⭐';
+                            key.appendChild(star);
+                            setTimeout(() => {
+                                key.classList.remove('correct-flash');
+                                star.remove();
+                            }, 550);
+                        }
+                    }
+                }
+            };
+
+            const stopNote = () => {
+                if (key.dataset.isPlaying === "false") return;
+                key.dataset.isPlaying = "false";
+                key.classList.remove('active');
+                try { sampler.triggerRelease(fullNote); } catch (err) {}
+            };
+
+            let isTouchActive = false;
+
+            key.addEventListener('pointerdown', () => {
+                if (isTouchActive) return;
+                isTouchActive = true;
+                playNote();
+            });
+            key.addEventListener('pointermove', (e) => e.preventDefault());
+            key.addEventListener('pointerup', () => { isTouchActive = false; stopNote(); });
+            key.addEventListener('pointerleave', () => { isTouchActive = false; stopNote(); });
+            key.addEventListener('pointercancel', () => { isTouchActive = false; stopNote(); });
+
+            pianoElement.appendChild(key);
+        });
+    });
+
+    // Responsive key sizing: always fit 2 octaves (14 white keys) to the
+    // container's actual width, so nothing overflows on a phone screen.
+    function sizeKeys() {
+        const totalWhiteKeys = 7;
+        const containerWidth = pianoContainer.clientWidth;
+        let whiteW = Math.floor(containerWidth / totalWhiteKeys);
+        whiteW = Math.max(24, Math.min(whiteW, 60));
+        const blackW = Math.round(whiteW * 0.66);
+        document.documentElement.style.setProperty('--white-w', whiteW + 'px');
+        document.documentElement.style.setProperty('--black-w', blackW + 'px');
+    }
+    window.addEventListener('resize', sizeKeys);
+    sizeKeys();
+    // Re-measure once layout has fully settled — an initial synchronous call
+    // can occasionally read a stale/incorrect container width before the
+    // viewport is fully applied.
+    window.addEventListener('load', sizeKeys);
+    requestAnimationFrame(sizeKeys);
+
+    // Polls playback time, lights up the currently-due key (green outline,
+    // matching the video's own green-line cue), and advances past notes that
+    // were missed once their window closes — no penalty, it just moves on.
+    setInterval(() => {
+        if (!player || !player.getCurrentTime || songIdx >= songNotes.length) return;
+        const t = player.getCurrentTime();
+        const cur = songNotes[songIdx];
+        const keyEl = keyByNote[cur.note];
+        const inWindow = t >= cur.time - NOTE_LEAD && t <= cur.time + NOTE_TAIL;
+
+        if (keyEl) keyEl.classList.toggle('due', inWindow);
+
+        if (t > cur.time + NOTE_TAIL) {
+            if (keyEl) keyEl.classList.remove('due');
+            songIdx++;
+            songHit = false;
+        }
+    }, 100);
+</script>
+</body>
+</html>
