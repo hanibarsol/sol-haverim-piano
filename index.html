@@ -559,13 +559,17 @@
         applyAudioState();
     });
 
-    // This lesson only: the video moves into "press along with me" at
-    // 00:53, so the page switches into practice mode automatically at that
-    // point instead of relying on the child to notice and tap the מצב
-    // buttons themselves. Fires once per play-through; a manual tap still
-    // works normally afterward, and it resets when the song is replayed.
-    const AUTO_PRACTICE_TIME = 53;
-    let autoSwitchFired = false;
+    // This lesson only: the video asks kids to play along from 00:53 to
+    // 01:49, so the page switches into practice mode automatically at the
+    // start of that stretch and back to watch automatically once it ends —
+    // instead of relying on the child to notice and tap the מצב buttons
+    // themselves. Each edge only fires once per play-through (not a
+    // continuous lock), so a manual tap in between still works normally;
+    // both reset when the song is replayed from the start.
+    const AUTO_PRACTICE_START = 53;
+    const AUTO_PRACTICE_END = 109;
+    let autoEnterFired = false;
+    let autoExitFired = false;
 
     // Calibration tool is dev-only: hidden from students, shown only when
     // building/checking a song's timing map via ?admin=1 in the URL.
@@ -650,7 +654,8 @@
             songIdx = 0;
             songHit = false;
             resetKeyFills();
-            autoSwitchFired = false;
+            autoEnterFired = false;
+            autoExitFired = false;
             setMode('watch');
             isPaused = false;
             playPauseBtn.textContent = '⏸';
@@ -1278,9 +1283,13 @@
         if (!player || !player.getCurrentTime) return;
         const t = player.getCurrentTime();
 
-        if (!autoSwitchFired && mode === 'watch' && t >= AUTO_PRACTICE_TIME) {
-            autoSwitchFired = true;
+        if (!autoEnterFired && mode === 'watch' && t >= AUTO_PRACTICE_START && t < AUTO_PRACTICE_END) {
+            autoEnterFired = true;
             setMode('practice');
+        }
+        if (!autoExitFired && mode === 'practice' && t >= AUTO_PRACTICE_END) {
+            autoExitFired = true;
+            setMode('watch');
         }
 
         if (songIdx >= songNotes.length) return;
