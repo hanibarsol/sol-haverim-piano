@@ -307,7 +307,7 @@
             pointer-events: none;
             border-radius: 0 0 5px 5px;
             background: linear-gradient(180deg, rgba(130,226,255,0.4), rgba(41,150,201,0.75));
-            transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
         }
         .key-fill::after {
             content: '';
@@ -447,7 +447,7 @@
         <button id="mode-practice" class="mode-btn">🎹 תרגול</button>
         <div id="audio-toggle-wrap" class="hidden">
             <button id="audio-toggle" title="ליווי קול">🔇</button>
-            <span id="audio-toggle-label">חני, תשירי ותנגני איתי</span>
+            <span id="audio-toggle-label">חני, תנגני איתי</span>
         </div>
     </div>
     <div id="speed-bar">
@@ -535,6 +535,11 @@
         modeWatchBtn.classList.toggle('active', mode === 'watch');
         modePracticeBtn.classList.toggle('active', mode === 'practice');
         audioToggleWrap.classList.toggle('hidden', mode !== 'practice');
+        // The water-fill result on each key is practice-mode feedback — left
+        // showing in watch mode it just reads as a stray blue stain on the
+        // keys. Fade it out of view (without erasing the progress itself)
+        // so it's back the moment practice starts again.
+        Object.values(keyFillEls).forEach(el => { el.style.opacity = mode === 'practice' ? '1' : '0'; });
         if (mode === 'watch') {
             activeTiles.forEach(tile => tile.remove());
             activeTiles.clear();
@@ -553,6 +558,14 @@
         audioToggleBtn.textContent = audioOn ? '🔊' : '🔇';
         applyAudioState();
     });
+
+    // This lesson only: the video moves into "press along with me" at
+    // 00:53, so the page switches into practice mode automatically at that
+    // point instead of relying on the child to notice and tap the מצב
+    // buttons themselves. Fires once per play-through; a manual tap still
+    // works normally afterward, and it resets when the song is replayed.
+    const AUTO_PRACTICE_TIME = 53;
+    let autoSwitchFired = false;
 
     // Calibration tool is dev-only: hidden from students, shown only when
     // building/checking a song's timing map via ?admin=1 in the URL.
@@ -637,6 +650,8 @@
             songIdx = 0;
             songHit = false;
             resetKeyFills();
+            autoSwitchFired = false;
+            setMode('watch');
             isPaused = false;
             playPauseBtn.textContent = '⏸';
             return;
@@ -1260,8 +1275,15 @@
     // tile are both practice-mode-only: in watch mode nothing is being
     // graded, so nothing should look like it's demanding a correct key.
     setInterval(() => {
-        if (!player || !player.getCurrentTime || songIdx >= songNotes.length) return;
+        if (!player || !player.getCurrentTime) return;
         const t = player.getCurrentTime();
+
+        if (!autoSwitchFired && mode === 'watch' && t >= AUTO_PRACTICE_TIME) {
+            autoSwitchFired = true;
+            setMode('practice');
+        }
+
+        if (songIdx >= songNotes.length) return;
         const cur = songNotes[songIdx];
         const keyEl = keyByNote[cur.note];
         const inWindow = t >= cur.time - NOTE_LEAD && t <= cur.time + NOTE_TAIL;
