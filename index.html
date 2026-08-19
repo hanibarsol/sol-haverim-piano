@@ -483,6 +483,11 @@
 @media (max-width: 640px) {
     .sol-home-btn { width: 44px; height: 44px; top: 8px; left: 8px; }
     .sol-home-btn svg { width: 22px; height: 22px; }
+    /* Phones only: drop the two empty centering columns. They hold no
+       content, and on a phone they ate 264px of a ~390px screen, which
+       squeezed the keys down to 31px wide. The cabinet stays centered
+       on its own via #piano-container's flex centering. */
+    #rig { grid-template-columns: 0 auto 0; gap: 0; padding: 0 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
     .sol-home-btn { transition: none; }
@@ -1283,7 +1288,11 @@
         const totalWhiteKeys = 7;
         // Two 96px mirror columns (empty, just to keep the cabinet
         // centered) + grid gaps + cabinet/keywell padding.
-        const reserved = 96 * 2 + 16 * 2 + 40;
+        // Below 640px those mirror columns are collapsed to zero (see the
+        // media query above), so only the cabinet/keywell padding and the
+        // rig's own 4px sides are reserved — the keys get the rest.
+        const narrowScreen = window.innerWidth <= 640;
+        const reserved = narrowScreen ? 8 + 56 : 96 * 2 + 16 * 2 + 40;
         const rawWidth = Math.min(pianoContainer.clientWidth, window.innerWidth);
         const containerWidth = Math.max(220, rawWidth - reserved);
 
