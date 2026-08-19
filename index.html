@@ -639,6 +639,9 @@
     const AUTO_PRACTICE_END = 109;
     let autoEnterFired = false;
     let autoExitFired = false;
+    // Last clock reading, so a jump backwards can be spotted no matter
+    // what caused it.
+    let lastVideoTime = 0;
 
     // Calibration tool is dev-only: hidden from students, shown only when
     // building/checking a song's timing map via ?admin=1 in the URL.
@@ -1355,6 +1358,34 @@
     setInterval(() => {
         if (!player || !player.getCurrentTime) return;
         const t = player.getCurrentTime();
+
+        // Restarts made inside the YouTube player — its own replay control,
+        // or a child dragging the scrubber back — never reach the replay
+        // button on this page, which was the only thing that re-armed the
+        // auto-switch. Practice mode then never came back, and the note
+        // counter stayed parked at the end of the song, so even tapping
+        // תרגול by hand gave a practice mode with no falling notes.
+        // Watch the clock rather than the button: whoever moved it back,
+        // rebuild the same state the replay button rebuilds.
+        if (t < lastVideoTime - 1) {
+            songIdx = 0;
+            while (songIdx < songNotes.length && t > songNotes[songIdx].time + NOTE_TAIL) songIdx++;
+            songHit = false;
+            resetKeyFills();
+            Object.values(keyByNote).forEach(el => el.classList.remove('due'));
+            // Landing before the play-along stretch ends means it is still
+            // ahead of us, so both auto-switch edges have to fire again.
+            if (t < AUTO_PRACTICE_END) {
+                autoEnterFired = false;
+                autoExitFired = false;
+            }
+            // The pause button was left showing the end-of-song 🔁.
+            if (player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                isPaused = false;
+                playPauseBtn.textContent = '⏸';
+            }
+        }
+        lastVideoTime = t;
 
         if (!autoEnterFired && mode === 'watch' && t >= AUTO_PRACTICE_START && t < AUTO_PRACTICE_END) {
             autoEnterFired = true;
